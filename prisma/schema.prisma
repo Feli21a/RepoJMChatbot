@@ -1,0 +1,114 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// --------------------------------------------------
+//  MODELOS
+// --------------------------------------------------
+
+model Sucursal {
+  id        Int     @id @default(autoincrement())
+  nombre    String
+  direccion String?
+  apertura  String // “09:00”
+  cierre    String // “20:00”
+
+  barberos Barbero[]
+  reservas Reserva[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cliente {
+  id       Int     @id @default(autoincrement())
+  nombre   String
+  telefono String  @unique
+  email    String? @unique
+
+  reservas Reserva[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Barbero {
+  id         Int     @id @default(autoincrement())
+  nombre     String
+  activo     Boolean @default(true)
+  sucursalId Int
+
+  sucursal         Sucursal                @relation(fields: [sucursalId], references: [id])
+  reservas         Reserva[]
+  disponibilidades BarberoDisponibilidad[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Servicio {
+  id       Int    @id @default(autoincrement())
+  nombre   String
+  precio   Int
+  duracion Int // en minutos
+
+  reservas ReservaServicio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Reserva {
+  id                Int           @id @default(autoincrement())
+  clienteId         Int
+  sucursalId        Int
+  barberoId         Int
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  estado            EstadoReserva @default(PENDIENTE)
+  precioTotal       Int           @default(0)
+  codigoCancelacion String        @unique
+  chatId            String? // NUEVO → para identificar al usuario del chatbot
+
+  cliente   Cliente           @relation(fields: [clienteId], references: [id])
+  sucursal  Sucursal          @relation(fields: [sucursalId], references: [id])
+  barbero   Barbero           @relation(fields: [barberoId], references: [id])
+  servicios ReservaServicio[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Tabla intermedia (N a N)
+model ReservaServicio {
+  reservaId  Int
+  servicioId Int
+
+  reserva  Reserva  @relation(fields: [reservaId], references: [id])
+  servicio Servicio @relation(fields: [servicioId], references: [id])
+
+  @@id([reservaId, servicioId])
+}
+
+model BarberoDisponibilidad {
+  id         Int      @id @default(autoincrement())
+  barberoId  Int
+  fecha      DateTime // día específico
+  horaInicio DateTime
+  horaFin    DateTime
+  disponible Boolean  @default(true)
+  motivo     String?
+
+  barbero Barbero @relation(fields: [barberoId], references: [id])
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  CONFIRMADA
+  CANCELADA
+}
